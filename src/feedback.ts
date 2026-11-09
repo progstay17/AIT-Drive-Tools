@@ -23,7 +23,7 @@ export function startFeedback(label: string, stream: Writable & { isTTY?: boolea
   let finished = false;
 
   if (!tty) {
-    stream.write(`[AIT Drive] ${label}...\\n`);
+    stream.write(`[AIT Drive] ${label}...\n`);
   } else {
     stream.write(`${frames[0]} ${label}`);
   }
@@ -32,7 +32,7 @@ export function startFeedback(label: string, stream: Writable & { isTTY?: boolea
     if (finished) return;
     const elapsed = formatDuration(Date.now() - started);
     frame = (frame + 1) % frames.length;
-    stream.write(`\\r\\u001b[2K${frames[frame]} ${label} (${elapsed})`);
+    stream.write(`\r\u001b[2K${frames[frame]} ${label} (${elapsed})`);
   }, 100) : undefined;
   timer?.unref();
 
@@ -43,8 +43,8 @@ export function startFeedback(label: string, stream: Writable & { isTTY?: boolea
     const elapsed = formatDuration(Date.now() - started);
     const status = success ? "✓" : "✗";
     const suffix = detail ? ` — ${detail}` : "";
-    if (tty) stream.write(`\\r\\u001b[2K${status} ${label} (${elapsed})${suffix}\\n`);
-    else stream.write(`[AIT Drive] ${status} ${label} (${elapsed})${suffix}\\n`);
+    if (tty) stream.write(`\r\u001b[2K${status} ${label} (${elapsed})${suffix}\n`);
+    else stream.write(`[AIT Drive] ${status} ${label} (${elapsed})${suffix}\n`);
   };
 }
 
@@ -65,8 +65,8 @@ export function createTransferReporter(label: string, stream: Writable & { isTTY
     const eta = total && speed > 0 ? formatDuration((total - loaded) / speed * 1000) : undefined;
     const progress = total ? `${formatBytes(loaded)} / ${formatBytes(total)} (${percent}%)` : formatBytes(loaded);
     const line = `${label}: ${progress} · ${formatBytes(speed)}/s${eta ? ` · ETA ${eta}` : ""}`;
-    if (tty) stream.write(`\\r\\u001b[2K${line}`);
-    else stream.write(`[AIT Drive] ${line}\\n`);
+    if (tty) stream.write(`\r\u001b[2K${line}`);
+    else stream.write(`[AIT Drive] ${line}\n`);
     previousAt = now;
     previousBytes = loaded;
     lastLineAt = now;
@@ -74,5 +74,5 @@ export function createTransferReporter(label: string, stream: Writable & { isTTY
 }
 
 export function finishTransfer(stream: Writable & { isTTY?: boolean } = process.stderr): void {
-  if (stream.isTTY) stream.write("\\n");
+  if (stream.isTTY) stream.write("\n");
 }
