@@ -17,8 +17,8 @@ This repository is intentionally separate from:
 
 ## Planned capabilities
 
-- CLI: authentication, account context, file/folder search and management, transfers, trash, sharing, storage status.
-- Batch workflows: bulk move, bulk share, folder creation, metadata reports, and data export.
+- CLI: account context, file/folder search and management, streaming file transfers, trash, sharing, storage status, and CSV export.
+- Batch workflows: batch share with per-item results, safe previews, folder creation, and search-result CSV export.
 - MCP: discoverable tools with typed input schemas and structured results.
 - AI skill: instructions and examples that let compatible agents learn the CLI without bespoke prompting.
 - OpenAPI contract and integration tests.
@@ -41,4 +41,4 @@ npm run typecheck
 
 ## Status
 
-Early development. Scoped Gateway PAT authentication is implemented; additional file and batch workflows are next.
+Scoped Gateway PAT authentication and core file operations are implemented. Folder transfer orchestration, progress reporting, batch organization, and richer spreadsheet export are next.

@@ -12,15 +12,15 @@
 - [ ] CLI and MCP parity tests.
 
 ## Phase 2 — safe file operations
-- [ ] Upload/download with streaming and progress.
-- [ ] Create folder, rename, move, trash, restore.
-- [ ] Batch preview/dry-run and explicit confirmation.
+- [x] Upload/download with streaming (progress reporting remains open).
+- [x] Create folder, rename, move, trash, restore.
+- [x] Preview/dry-run and explicit confirmation for rename, move, delete, and batch share.
 - [ ] Transfer task reporting.
 
 ## Phase 3 — high-level workflows
-- [ ] Batch share with per-item results.
+- [x] Batch share with per-item results.
 - [ ] Organize files from natural-language plans.
-- [ ] Export selected CSV/XLSX data to spreadsheet.
+- [x] Export search results to CSV (XLSX and selected-item export remain open).
 - [ ] Verify every operation and return a machine-readable report.
 
 ## Phase 4 — integrations
