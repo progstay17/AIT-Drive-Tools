@@ -25,7 +25,7 @@ This repository is intentionally separate from:
 
 ## Current API compatibility
 
-The current Gateway API uses browser session cookies for `/api/*`; it does not yet expose a dedicated personal access token flow. The Tools CLI must **not** scrape browser cookies or persist account passwords. A narrowly scoped, revocable CLI token capability must be added to AIT-Drive Gateway in a separate reviewed change before authenticated CLI operations are enabled.
+AIT-Drive Gateway now supports scoped, revocable Personal Access Tokens (PATs) for CLI and MCP clients. Create a token from an authenticated browser session, then set `AIT_DRIVE_URL` and `AIT_DRIVE_TOKEN` locally. The token secret is shown once; Gateway stores only its SHA-256 digest. Browser-cookie scraping and password storage are intentionally unsupported.
 
 See [docs/ROADMAP.md](docs/ROADMAP.md), [docs/SECURITY.md](docs/SECURITY.md), and [docs/GATEWAY-INTEGRATION.md](docs/GATEWAY-INTEGRATION.md).
 
@@ -41,4 +41,4 @@ npm run typecheck
 
 ## Status
 
-Early development. No production integration is enabled yet.
+Early development. Scoped Gateway PAT authentication is implemented; additional file and batch workflows are next.
