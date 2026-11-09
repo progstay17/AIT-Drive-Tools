@@ -120,12 +120,12 @@ export class GatewayClient {
     const source = resolve(localPath);
     const info = await stat(source);
     if (!info.isFile()) throw new Error("Upload source must be a regular file.");
-    const name = basename(source).replace(/["\\r\\n]/g, "_");
+    const name = basename(source).replace(/["\r\n]/g, "_");
     const boundary = "----AITDrive" + randomBytes(18).toString("hex");
     const prefix = Buffer.from(
-      `--${boundary}\\r\\nContent-Disposition: form-data; name="file"; filename="${name}"\\r\\nContent-Type: application/octet-stream\\r\\n\\r\\n`
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${name}"\r\nContent-Type: application/octet-stream\r\n\r\n`
     );
-    const suffix = Buffer.from(`\\r\\n--${boundary}--\\r\\n`);
+    const suffix = Buffer.from(`\r\n--${boundary}--\r\n`);
     const body = Readable.from((async function* () {
       yield prefix;
       for await (const chunk of createReadStream(source)) yield chunk;
