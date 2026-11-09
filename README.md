@@ -42,7 +42,7 @@ ait-drive auth status
 ait-drive auth logout --profile kantor
 ```
 
-During login, enter the Gateway URL and PAT when prompted. PAT input is hidden. The active profile is used by both CLI and MCP. To select a profile for a dedicated MCP process without changing the global active profile, set `AIT_DRIVE_PROFILE=kantor` in that MCP server's environment. An explicit CLI `--profile <name>` also selects a profile.
+During login, enter the Gateway URL and PAT when prompted. PAT input is hidden. The active profile is used by both CLI and MCP. To select a profile for a dedicated MCP process without changing the global active profile, set `AIT_DRIVE_PROFILE=kantor` in that MCP server's environment. For other CLI commands, use the global `--use-profile <name>` option (before the command) to select a profile without switching the active one.
 
 `auth logout` removes only the local profile and does not revoke its server token. Use `auth logout --revoke` to ask the Gateway to revoke that profile's own PAT before deleting its local credentials. If an administrator has already revoked the token from the web panel, local logout still works without `--revoke`.
 

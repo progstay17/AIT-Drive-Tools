@@ -9,8 +9,8 @@ import { createTransferReporter, finishTransfer, startFeedback } from "./feedbac
 import { activateProfile, deleteProfile, listProfiles, saveProfile } from "./profile-store.js";
 
 const program = new Command();
-program.name("ait-drive").description("Manage AIT Drive from a terminal or AI agent").version("0.2.0").option("--json", "Print machine-readable JSON").option("--profile <name>", "Use a named profile instead of the active profile");
-const client = () => new GatewayClient(loadConfig(process.env, program.opts().profile));
+program.name("ait-drive").description("Manage AIT Drive from a terminal or AI agent").version("0.2.0").option("--json", "Print machine-readable JSON").option("--use-profile <name>", "Use a named profile instead of the active profile");
+const client = () => new GatewayClient(loadConfig(process.env, program.opts().useProfile));
 const feedbackStops = new WeakMap<Command, (success?: boolean, detail?: string) => void>();
 let activeFeedbackStop: ((success?: boolean, detail?: string) => void) | undefined;
 let transferLabel = "";
@@ -90,22 +90,22 @@ auth.command("status").description("Show active profile and authenticated accoun
   try {
     const profiles = await listProfiles();
     const account = await client().me();
-    output({ activeProfile: profiles.activeProfile, gateway: loadConfig(process.env, program.opts().profile).baseUrl, account });
+    output({ activeProfile: profiles.activeProfile, gateway: loadConfig(process.env, program.opts().useProfile).baseUrl, account });
   } catch (error) { fail(error); }
 });
 auth.command("logout").description("Remove a local profile; optionally revoke its PAT first").option("--profile <name>", "Profile to remove (defaults to active)").option("--revoke", "Revoke this PAT on the Gateway before removing the local profile").action(async (opts) => {
   try {
     if (opts.revoke) {
-      const cfg = loadConfig({}, opts.profile || program.opts().profile);
+      const cfg = loadConfig({}, opts.profile || program.opts().useProfile);
       await new GatewayClient(cfg).revokeSelf();
     }
-    const result = await deleteProfile(opts.profile || program.opts().profile);
+    const result = await deleteProfile(opts.profile || program.opts().useProfile);
     output({ ok: true, loggedOut: result.name, activeProfile: result.activeProfile || null, revokedOnGateway: Boolean(opts.revoke) });
   } catch (error) { fail(error); }
 });
 
 program.command("config").description("Validate local connection configuration").action(() => {
-  try { const c = loadConfig(process.env, program.opts().profile); output({ ok: true, gateway: c.baseUrl, tokenConfigured: Boolean(c.token), tokenAuth: c.token ? "bearer" : "not-configured" }); }
+  try { const c = loadConfig(process.env, program.opts().useProfile); output({ ok: true, gateway: c.baseUrl, tokenConfigured: Boolean(c.token), tokenAuth: c.token ? "bearer" : "not-configured" }); }
   catch (error) { fail(error); }
 });
 program.command("account").description("Show authenticated account and current permissions").action(async () => {
