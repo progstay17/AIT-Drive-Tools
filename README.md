@@ -41,4 +41,4 @@ npm run typecheck
 
 ## Status
 
-Scoped Gateway PAT authentication and core file operations are implemented. Transfer progress reporting, richer batch organization, and XLSX spreadsheet export are next.
+Scoped Gateway PAT authentication and core file operations are implemented. Persistent transfer history, richer batch organization, and XLSX spreadsheet export are next.
