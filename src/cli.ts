@@ -98,10 +98,10 @@ auth.command("status").description("Show active profile and authenticated accoun
 auth.command("logout").description("Remove a local profile; optionally revoke its PAT first").option("--profile <name>", "Profile to remove (defaults to active)").option("--revoke", "Revoke this PAT on the Gateway before removing the local profile").action(async (opts) => {
   try {
     if (opts.revoke) {
-      const cfg = loadConfig({}, profileName || program.opts().profile);
+      const cfg = loadConfig({}, opts.profile || program.opts().profile);
       await new GatewayClient(cfg).revokeSelf();
     }
-    const result = await deleteProfile(profileName || program.opts().profile);
+    const result = await deleteProfile(opts.profile || program.opts().profile);
     output({ ok: true, loggedOut: result.name, activeProfile: result.activeProfile || null, revokedOnGateway: Boolean(opts.revoke) });
   } catch (error) { fail(error); }
 });
