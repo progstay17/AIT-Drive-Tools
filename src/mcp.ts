@@ -7,7 +7,6 @@ import { GatewayClient } from "./gateway.js";
 
 const server = new Server({ name: "ait-drive", version: "0.1.0" }, { capabilities: { tools: {} } });
 const client = () => new GatewayClient(loadConfig());
-
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     { name: "ait_drive_list_files", description: "List files and folders in an AIT Drive directory. Paths are relative to the account drive root.", inputSchema: { type: "object", properties: { path: { type: "string", description: "Folder path; empty string means drive root." } } } },
@@ -16,7 +15,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     { name: "ait_drive_create_share_link", description: "Create a read-only share link for one file or folder ZIP. Expiry is 1–30 days.", inputSchema: { type: "object", properties: { path: { type: "string" }, days: { type: "integer", minimum: 1, maximum: 30, default: 7 } }, required: ["path"] } }
   ]
 }));
-
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     const args = request.params.arguments ?? {};
@@ -30,18 +28,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const input = z.object({ query: z.string().min(1) }).parse(args);
         result = await client().search(input.query); break;
       }
-      case "ait_drive_storage_stats":
-        result = await client().stats(); break;
+      case "ait_drive_storage_stats": result = await client().stats(); break;
       case "ait_drive_create_share_link": {
         const input = z.object({ path: z.string().min(1), days: z.number().int().min(1).max(30).optional().default(7) }).parse(args);
         result = await client().share(input.path, input.days); break;
       }
       default: throw new Error(`Unknown tool: ${request.params.name}`);
     }
-    return { content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: result as Record<string, unknown> };
+    return { content: [{ type: "text", text: JSON.stringify(result) }] };
   } catch (error) {
     return { isError: true, content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }] };
   }
 });
-
 await server.connect(new StdioServerTransport());
