@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -75,6 +76,20 @@ export async function resolveProfile(name?: string) {
   const key = name || store.activeProfile;
   if (!key) return null;
   const profile = store.profiles[key];
+  if (!profile) throw new Error(`Profile "${key}" tidak ditemukan.`);
+  return { baseUrl: profile.baseUrl, token: runDpapi("unprotect", profile.protectedToken), profile: key };
+}
+
+export function resolveProfileSync(name?: string) {
+  let store: ProfileStore;
+  try { store = JSON.parse(readFileSync(storePath(), "utf8")) as ProfileStore; }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw new Error("File profile AIT Drive tidak bisa dibaca atau formatnya rusak.");
+  }
+  const key = name || store.activeProfile;
+  if (!key) return null;
+  const profile = store.profiles && store.profiles[key];
   if (!profile) throw new Error(`Profile "${key}" tidak ditemukan.`);
   return { baseUrl: profile.baseUrl, token: runDpapi("unprotect", profile.protectedToken), profile: key };
 }
