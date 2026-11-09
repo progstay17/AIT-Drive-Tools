@@ -1,13 +1,52 @@
 #!/usr/bin/env node
 import { writeFile } from "node:fs/promises";
+import { createInterface } from "node:readline";
 import { resolve } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "./config.js";
 import { GatewayClient } from "./gateway.js";
+import { activateProfile, deleteProfile, listProfiles, saveProfile } from "./profile-store.js";
 
 const program = new Command();
-program.name("ait-drive").description("Manage AIT Drive from a terminal or AI agent").version("0.2.0").option("--json", "Print machine-readable JSON");
-const client = () => new GatewayClient(loadConfig());
+program.name("ait-drive").description("Manage AIT Drive from a terminal or AI agent").version("0.2.0").option("--json", "Print machine-readable JSON").option("--profile <name>", "Use a named profile instead of the active profile");
+const client = () => new GatewayClient(loadConfig(process.env, program.opts().profile));
+
+const auth = program.command("auth").description("Manage encrypted local AIT Drive profiles");
+auth.command("login").description("Add or replace a named profile").requiredOption("--profile <name>").action(async (opts) => {
+  try {
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    const gatewayUrl = (await rl.question("Gateway URL (https://...): ")).trim();
+    rl.close();
+    const token = await hiddenPrompt("Personal Access Token (input hidden): ");
+    const candidate = new GatewayClient({ baseUrl: gatewayUrl.replace(/\\/$/, ""), token });
+    const account = await candidate.me();
+    await saveProfile(opts.profile, gatewayUrl, token);
+    output({ ok: true, profile: opts.profile, gateway: gatewayUrl.replace(/\\/$/, ""), account: account.name, active: true, credentialStorage: "Windows DPAPI" });
+  } catch (error) { fail(error); }
+});
+auth.command("list").description("List saved profiles without exposing credentials").action(async () => {
+  try { output(await listProfiles()); } catch (error) { fail(error); }
+});
+auth.command("switch").description("Switch the active profile").argument("<name>").action(async (name) => {
+  try { await activateProfile(name); output({ ok: true, activeProfile: name }); } catch (error) { fail(error); }
+});
+auth.command("status").description("Show active profile and authenticated account").action(async () => {
+  try {
+    const profiles = await listProfiles();
+    const account = await client().me();
+    output({ activeProfile: profiles.activeProfile, gateway: loadConfig(process.env, program.opts().profile).baseUrl, account });
+  } catch (error) { fail(error); }
+});
+auth.command("logout").description("Remove a local profile; optionally revoke its PAT first").option("--profile <name>", "Profile to remove (defaults to active)").option("--revoke", "Revoke this PAT on the Gateway before removing the local profile").action(async (opts) => {
+  try {
+    if (opts.revoke) {
+      const cfg = loadConfig(process.env, opts.profile || program.opts().profile);
+      await new GatewayClient(cfg).revokeSelf();
+    }
+    const result = await deleteProfile(opts.profile || program.opts().profile);
+    output({ ok: true, loggedOut: result.name, activeProfile: result.activeProfile || null, revokedOnGateway: Boolean(opts.revoke) });
+  } catch (error) { fail(error); }
+});
 
 program.command("config").description("Validate local connection configuration").action(() => {
   try { const c = loadConfig(); output({ ok: true, gateway: c.baseUrl, tokenConfigured: Boolean(c.token), tokenAuth: c.token ? "bearer" : "not-configured" }); }
@@ -102,6 +141,27 @@ program.command("export-search").description("Export search results as a CSV spr
     output({ path: destination, rows: result.items.length, format: "csv" });
   } catch (error) { fail(error); }
 });
+
+async function hiddenPrompt(label: string): Promise<string> {
+  if (!process.stdin.isTTY || typeof process.stdin.setRawMode !== "function") {
+    throw new Error("Login memerlukan terminal interaktif agar PAT tidak tampil di layar. Jalankan tanpa pipe/redirect.");
+  }
+  return new Promise((resolve, reject) => {
+    let value = "";
+    const input = process.stdin;
+    const onData = (chunk: Buffer) => {
+      for (const char of chunk.toString("utf8")) {
+        if (char === "\\u0003") { cleanup(); reject(new Error("Login dibatalkan.")); return; }
+        if (char === "\\r" || char === "\\n") { cleanup(); process.stderr.write("\\n"); resolve(value); return; }
+        if (char === "\\u007f" || char === "\\b") value = value.slice(0, -1);
+        else if (char >= " ") value += char;
+      }
+    };
+    const cleanup = () => { input.off("data", onData); input.setRawMode(false); input.pause(); };
+    process.stderr.write(label);
+    input.setRawMode(true); input.resume(); input.on("data", onData);
+  });
+}
 
 function authorizeMutation(opts: { yes?: boolean; dryRun?: boolean }, operation: string, details: unknown): boolean {
   if (opts.dryRun) { output({ dryRun: true, operation, details }); return false; }
