@@ -71,7 +71,7 @@ auth.command("login").description("Add or replace a named profile").requiredOpti
     const token = await hiddenPrompt("Personal Access Token (input hidden): ");
     const candidate = new GatewayClient({ baseUrl: gatewayUrl.replace(/\/+$/, ""), token });
     const stopValidation = startFeedback("Memvalidasi PAT ke Gateway");
-    let account;
+    let account: Awaited<ReturnType<GatewayClient["me"]>>;
     try { account = await candidate.me(); stopValidation(true, "token valid"); }
     catch (error) { stopValidation(false, "validasi gagal"); throw error; }
     const stopSave = startFeedback("Menyimpan profile terenkripsi");
@@ -248,7 +248,8 @@ function output(value: unknown) {
 }
 function fail(error: unknown): void {
   const message = error instanceof Error ? error.message : String(error);
-  console.error(JSON.stringify({ ok: false, error: message }));
+  if (process.stderr.isTTY && !program.opts().json) console.error(`✗ ${message}`);
+  else console.error(JSON.stringify({ ok: false, error: message }));
   process.exitCode = 1;
 }
 await program.parseAsync(process.argv);
