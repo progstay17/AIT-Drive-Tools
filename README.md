@@ -29,6 +29,25 @@ AIT-Drive Gateway now supports scoped, revocable Personal Access Tokens (PATs) f
 
 See [docs/ROADMAP.md](docs/ROADMAP.md), [docs/SECURITY.md](docs/SECURITY.md), and [docs/GATEWAY-INTEGRATION.md](docs/GATEWAY-INTEGRATION.md).
 
+## Multiple accounts / profiles
+
+On Windows, CLI profiles keep Gateway URLs and PATs separate. PAT secrets are protected with the current Windows user's DPAPI; the secret is never written as plaintext. Login validates the PAT against `/api/me` before saving it.
+
+```powershell
+ait-drive auth login --profile kantor
+ait-drive auth login --profile pribadi
+ait-drive auth list
+ait-drive auth switch kantor
+ait-drive auth status
+ait-drive auth logout --profile kantor
+```
+
+During login, enter the Gateway URL and PAT when prompted. PAT input is hidden. The active profile is used by both CLI and MCP. To select a profile for a dedicated MCP process without changing the global active profile, set `AIT_DRIVE_PROFILE=kantor` in that MCP server's environment. An explicit CLI `--profile <name>` also selects a profile.
+
+`auth logout` removes only the local profile and does not revoke its server token. Use `auth logout --revoke` to ask the Gateway to revoke that profile's own PAT before deleting its local credentials. If an administrator has already revoked the token from the web panel, local logout still works without `--revoke`.
+
+The profile vault currently uses Windows DPAPI. On macOS/Linux, use environment variables supplied by the host's secret manager (`AIT_DRIVE_URL`, `AIT_DRIVE_TOKEN`) instead of persistent local profiles.
+
 ## Development
 
 Requirements: Node.js 20+.
