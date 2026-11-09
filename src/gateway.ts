@@ -34,11 +34,27 @@ export class GatewayClient {
     return headers;
   }
 
+  private async fetchWithFeedbackError(url: URL, init: RequestInit, timeoutMs: number): Promise<Response> {
+    try {
+      return await fetch(url, { ...init, signal: init.signal ?? AbortSignal.timeout(timeoutMs) });
+    } catch (error) {
+      const name = error instanceof Error ? error.name : "";
+      const message = error instanceof Error ? error.message : String(error);
+      if (name === "TimeoutError" || name === "AbortError") {
+        throw new Error(`Gateway tidak merespons dalam ${Math.round(timeoutMs / 1000)} detik. Periksa koneksi dan status Gateway, lalu coba lagi.`);
+      }
+      if (error instanceof TypeError) {
+        throw new Error(`Tidak dapat terhubung ke Gateway (${message}). Periksa URL, koneksi internet, DNS, dan reverse proxy.`);
+      }
+      throw error;
+    }
+  }
+
   private async request(path: string, init: RequestInit = {}, timeoutMs = 30_000): Promise<Response> {
     const headers = this.authHeaders(init.headers);
-    return fetch(new URL(path, this.config.baseUrl), {
-      ...init, headers, signal: AbortSignal.timeout(timeoutMs)
-    });
+    return this.fetchWithFeedbackError(new URL(path, this.config.baseUrl), {
+      ...init, headers, signal: init.signal ?? AbortSignal.timeout(timeoutMs)
+    }, timeoutMs);
   }
 
   private async jsonResult<T>(response: Response): Promise<T> {
@@ -150,7 +166,7 @@ export class GatewayClient {
       signal: AbortSignal.timeout(30 * 60 * 1000),
       duplex: "half"
     } as unknown as RequestInit & { duplex: "half" };
-    const response = await fetch(url, init);
+    const response = await this.fetchWithFeedbackError(url, init, 30 * 60 * 1000);
     return this.jsonResult<{ saved: string[] }>(response);
   }
 

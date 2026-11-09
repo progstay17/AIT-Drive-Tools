@@ -232,3 +232,30 @@ test("batch move returns per-item results without hiding failures", async () => 
     globalThis.fetch = originalFetch;
   }
 });
+
+
+test("turns Gateway network failures into actionable connection guidance", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => { throw new TypeError("getaddrinfo ENOTFOUND drive.example.com"); }) as typeof fetch;
+  try {
+    await assert.rejects(
+      () => new GatewayClient({ baseUrl: "https://drive.example.com", token: "pat-secret" }).me(),
+      /Tidak dapat terhubung ke Gateway.*DNS.*reverse proxy/
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("turns aborted Gateway requests into a clear timeout message", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => { throw Object.assign(new Error("aborted"), { name: "AbortError" }); }) as typeof fetch;
+  try {
+    await assert.rejects(
+      () => new GatewayClient({ baseUrl: "https://drive.example.com", token: "pat-secret" }).me(),
+      /Gateway tidak merespons dalam 30 detik/
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

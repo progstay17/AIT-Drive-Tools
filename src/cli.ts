@@ -5,11 +5,62 @@ import { resolve } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "./config.js";
 import { GatewayClient } from "./gateway.js";
+import { createTransferReporter, finishTransfer, startFeedback } from "./feedback.js";
 import { activateProfile, deleteProfile, listProfiles, saveProfile } from "./profile-store.js";
 
 const program = new Command();
 program.name("ait-drive").description("Manage AIT Drive from a terminal or AI agent").version("0.2.0").option("--json", "Print machine-readable JSON").option("--profile <name>", "Use a named profile instead of the active profile");
 const client = () => new GatewayClient(loadConfig(process.env, program.opts().profile));
+const feedbackStops = new WeakMap<Command, (success?: boolean, detail?: string) => void>();
+let activeFeedbackStop: ((success?: boolean, detail?: string) => void) | undefined;
+let transferLabel = "";
+let transferReporter: ReturnType<typeof createTransferReporter> | undefined;
+
+program.hook("preAction", (_thisCommand, actionCommand) => {
+  const parts: string[] = [];
+  let current: Command | null = actionCommand;
+  while (current && current !== program) {
+    if (current.name()) parts.unshift(current.name());
+    current = current.parent ?? null;
+  }
+  const commandPath = parts.join(" ");
+  if (commandPath === "auth login") return;
+  const labels: Record<string, string> = {
+    "auth list": "Memuat daftar profile",
+    "auth switch": "Mengganti profile aktif",
+    "auth status": "Memeriksa sesi dan akun",
+    "auth logout": "Logout dari profile",
+    "config": "Memeriksa konfigurasi",
+    "account": "Mengambil informasi akun",
+    "files list": "Memuat daftar file",
+    "files search": "Mencari file",
+    "files mkdir": "Membuat folder",
+    "files rename": "Mengganti nama item",
+    "files move": "Memindahkan item",
+    "files move-many": "Memindahkan beberapa item",
+    "files delete": "Memindahkan item ke Trash",
+    "files trash list": "Memuat Trash",
+    "files trash restore": "Memulihkan item dari Trash",
+    "upload": "Menyiapkan upload",
+    "upload-folder": "Memindai folder dan menyiapkan upload",
+    "download": "Menghubungi Gateway dan menyiapkan download",
+    "share": "Membuat share link",
+    "share-many": "Membuat beberapa share link",
+    "export-search": "Mencari file dan mengekspor CSV"
+  };
+  const stop = startFeedback(labels[commandPath] || `Menjalankan ${commandPath || "perintah"}`);
+  feedbackStops.set(actionCommand, stop);
+  activeFeedbackStop = stop;
+});
+
+program.hook("postAction", (_thisCommand, actionCommand) => {
+  const stop = feedbackStops.get(actionCommand);
+  if (stop) stop(process.exitCode !== 1);
+  if (activeFeedbackStop === stop) activeFeedbackStop = undefined;
+  transferLabel = "";
+  transferReporter = undefined;
+});
+
 
 const auth = program.command("auth").description("Manage encrypted local AIT Drive profiles");
 auth.command("login").description("Add or replace a named profile").requiredOption("--profile <name>").action(async (opts) => {
@@ -19,8 +70,13 @@ auth.command("login").description("Add or replace a named profile").requiredOpti
     rl.close();
     const token = await hiddenPrompt("Personal Access Token (input hidden): ");
     const candidate = new GatewayClient({ baseUrl: gatewayUrl.replace(/\/+$/, ""), token });
-    const account = await candidate.me();
-    await saveProfile(opts.profile, gatewayUrl, token);
+    const stopValidation = startFeedback("Memvalidasi PAT ke Gateway");
+    let account: Awaited<ReturnType<GatewayClient["me"]>>;
+    try { account = await candidate.me(); stopValidation(true, "token valid"); }
+    catch (error) { stopValidation(false, "validasi gagal"); throw error; }
+    const stopSave = startFeedback("Menyimpan profile terenkripsi");
+    try { await saveProfile(opts.profile, gatewayUrl, token); stopSave(true); }
+    catch (error) { stopSave(false); throw error; }
     output({ ok: true, profile: opts.profile, gateway: gatewayUrl.replace(/\/+$/, ""), account: account.name, active: true, credentialStorage: "Windows DPAPI" });
   } catch (error) { fail(error); }
 });
@@ -172,14 +228,19 @@ function authorizeMutation(opts: { yes?: boolean; dryRun?: boolean }, operation:
   return true;
 }
 function showProgress(label: string, loaded: number, total?: number): void {
-  if (!process.stderr.isTTY || program.opts().json) return;
-  const size = (n: number) => n < 1024 ? n + " B" : n < 1024 ** 2 ? (n / 1024).toFixed(1) + " KB" : n < 1024 ** 3 ? (n / 1024 ** 2).toFixed(1) + " MB" : (n / 1024 ** 3).toFixed(2) + " GB";
-  const suffix = total ? ` / ${size(total)} (${Math.min(100, Math.round(loaded / total * 100))}%)` : "";
-  process.stderr.write(`\r${label}: ${size(loaded)}${suffix}`);
-  if (total && loaded >= total) process.stderr.write("\n");
+  activeFeedbackStop?.();
+  activeFeedbackStop = undefined;
+  if (transferLabel !== label || !transferReporter) {
+    if (transferReporter) finishTransfer();
+    transferLabel = label;
+    transferReporter = createTransferReporter(label);
+  }
+  transferReporter(loaded, total);
 }
 function finishProgress(): void {
-  if (process.stderr.isTTY && !program.opts().json) process.stderr.write("\n");
+  if (transferReporter) finishTransfer();
+  transferLabel = "";
+  transferReporter = undefined;
 }
 function output(value: unknown) {
   if (program.opts().json || !process.stdout.isTTY) console.log(JSON.stringify(value));
@@ -187,7 +248,8 @@ function output(value: unknown) {
 }
 function fail(error: unknown): void {
   const message = error instanceof Error ? error.message : String(error);
-  console.error(JSON.stringify({ ok: false, error: message }));
+  if (process.stderr.isTTY && !program.opts().json) console.error(`✗ ${message}`);
+  else console.error(JSON.stringify({ ok: false, error: message }));
   process.exitCode = 1;
 }
 await program.parseAsync(process.argv);
