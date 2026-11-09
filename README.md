@@ -48,6 +48,18 @@ During login, enter the Gateway URL and PAT when prompted. PAT input is hidden. 
 
 The profile vault currently uses Windows DPAPI. On macOS/Linux, use environment variables supplied by the host's secret manager (`AIT_DRIVE_URL`, `AIT_DRIVE_TOKEN`) instead of persistent local profiles.
 
+## CLI activity and progress feedback
+
+Long-running CLI commands report activity instead of appearing idle:
+- Terminal sessions show a spinner, elapsed time, and a clear success/failure result.
+- Non-interactive runs write task status to stderr; JSON results remain on stdout.
+- Upload/download progress reports transferred bytes, percentage when the total is known, throughput, and estimated time remaining.
+- PAT login reports validation and encrypted profile-saving stages separately. PAT characters are never echoed.
+- Gateway connection failures and request timeouts include actionable diagnostics.
+- Ctrl+C remains available to interrupt interactive commands; interrupted network requests are cancelled by the request timeout/signal handling.
+
+Progress and status are written to stderr so scripts and AI agents can continue parsing stdout as JSON. Use `--json` when a command's result must always be machine-readable.
+
 ## Development
 
 Requirements: Node.js 20+.
