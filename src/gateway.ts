@@ -5,11 +5,10 @@ export class GatewayClient {
 
   private async request(path: string, init: RequestInit = {}): Promise<Response> {
     if (!this.config.token) {
-      throw new Error("AIT_DRIVE_TOKEN is missing. Browser-cookie authentication is intentionally unsupported. CLI token support requires the Gateway token API.");
+      throw new Error("AIT_DRIVE_TOKEN is missing. Create a scoped Personal Access Token from your AIT Drive browser session and set AIT_DRIVE_TOKEN.");
     }
     const headers = new Headers(init.headers);
     headers.set("Authorization", `Bearer ${this.config.token}`);
-    if (init.method && init.method !== "GET") headers.set("X-Requested-With", "drive");
     return fetch(new URL(path, this.config.baseUrl), { ...init, headers, signal: AbortSignal.timeout(30_000) });
   }
 
@@ -29,6 +28,10 @@ export class GatewayClient {
     const result = await response.json().catch(() => ({})) as { error?: string };
     if (!response.ok) throw new Error(result.error || `Gateway request failed (${response.status}).`);
     return result as T;
+  }
+
+  async me() {
+    return this.getJson<{ id: string; name: string; role: string; quota: number | null; perms: Record<string, boolean>; canAdmin: boolean }>("/api/me");
   }
 
   async list(path = "") {
