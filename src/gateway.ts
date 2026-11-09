@@ -136,11 +136,12 @@ export class GatewayClient {
       "Content-Length": String(prefix.length + info.size + suffix.length)
     });
     const url = new URL(`/api/upload?path=${encodeURIComponent(destinationFolder)}`, this.config.baseUrl);
-    const response = await fetch(url, {
+    const init = {
       method: "POST", headers, body,
       signal: AbortSignal.timeout(30 * 60 * 1000),
       duplex: "half"
-    } as RequestInit & { duplex: "half" });
+    } as unknown as RequestInit & { duplex: "half" };
+    const response = await fetch(url, init);
     return this.jsonResult<{ saved: string[] }>(response);
   }
 
