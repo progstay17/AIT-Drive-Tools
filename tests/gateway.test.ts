@@ -95,7 +95,9 @@ test("streams local file upload as multipart data", async () => {
     return new Response(JSON.stringify({ saved: ["sample.txt"] }), { status: 200, headers: { "Content-Type": "application/json" } });
   }) as typeof fetch;
   try {
-    const result = await new GatewayClient({ baseUrl: "https://drive.example.com", token: "pat-secret" }).upload(local, "Incoming");
+    let uploadLoaded = 0;
+    const result = await new GatewayClient({ baseUrl: "https://drive.example.com", token: "pat-secret" }).upload(local, "Incoming", (loaded) => { uploadLoaded = loaded; });
+    assert.equal(uploadLoaded, Buffer.byteLength("streamed payload"));
     assert.equal(new URL(requestUrl).pathname, "/api/upload");
     assert.equal(new URL(requestUrl).searchParams.get("path"), "Incoming");
     assert.match(multipart, /name="file"; filename="sample.txt"/);
@@ -116,6 +118,7 @@ test("streams downloads to disk and protects existing local files", async () => 
   await writeFile(destination, "keep me");
   const originalFetch = globalThis.fetch;
   let requestUrl = "";
+  let downloadLoaded = 0;
   globalThis.fetch = (async (input: RequestInfo | URL) => {
     requestUrl = String(input);
     return new Response("downloaded bytes", { status: 200 });
@@ -123,7 +126,8 @@ test("streams downloads to disk and protects existing local files", async () => 
   try {
     const client = new GatewayClient({ baseUrl: "https://drive.example.com", token: "pat-secret" });
     await assert.rejects(() => client.download("folder/report.txt", destination), /already exists/);
-    const result = await client.download("folder/report.txt", destination, true);
+    const result = await client.download("folder/report.txt", destination, true, (loaded) => { downloadLoaded = loaded; });
+    assert.equal(downloadLoaded, Buffer.byteLength("downloaded bytes"));
     assert.equal(await readFile(destination, "utf8"), "downloaded bytes");
     assert.equal(result.bytes, 16);
     assert.equal(new URL(requestUrl).searchParams.get("path"), "folder/report.txt");
