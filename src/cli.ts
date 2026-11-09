@@ -6,7 +6,7 @@ import { GatewayClient } from "./gateway.js";
 const program = new Command();
 program.name("ait-drive").description("Manage AIT Drive from a terminal or AI agent").version("0.1.0").option("--json", "Print machine-readable JSON");
 program.command("config").description("Validate local connection configuration").action(() => {
-  try { const c = loadConfig(); output({ ok: true, gateway: c.baseUrl, tokenConfigured: Boolean(c.token), tokenAuth: "pending-gateway-support" }); }
+  try { const c = loadConfig(); output({ ok: true, gateway: c.baseUrl, tokenConfigured: Boolean(c.token), tokenAuth: c.token ? "bearer" : "not-configured" }); }
   catch (error) { fail(error); }
 });
 const files = program.command("files").description("File and folder operations");
@@ -15,6 +15,9 @@ files.command("list").description("List a folder").option("--path <path>", "Driv
 });
 files.command("search").description("Search files by name").requiredOption("--query <text>").action(async (opts) => {
   try { output(await new GatewayClient(loadConfig()).search(opts.query)); } catch (error) { fail(error); }
+});
+program.command("account").description("Show authenticated account and current permissions").action(async () => {
+  try { output(await new GatewayClient(loadConfig()).me()); } catch (error) { fail(error); }
 });
 program.command("storage").description("Show storage usage").action(async () => {
   try { output(await new GatewayClient(loadConfig()).stats()); } catch (error) { fail(error); }
