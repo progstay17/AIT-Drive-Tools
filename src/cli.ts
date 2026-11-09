@@ -63,7 +63,9 @@ program.hook("postAction", (_thisCommand, actionCommand) => {
 
 
 const auth = program.command("auth").description("Manage encrypted local AIT Drive profiles");
-auth.command("login").description("Add or replace a named profile").requiredOption("--profile <name>").action(async (opts) => {
+auth.command("login").description("Add or replace a named profile").action(async () => {
+  const profileName = program.opts().profile as string | undefined;
+  if (!profileName) { console.error("Missing profile name. Usage: ait-drive auth login --profile <name>"); process.exitCode = 1; return; }
   try {
     const rl = createInterface({ input: process.stdin, output: process.stdout });
     const gatewayUrl = (await rl.question("Gateway URL (https://...): ")).trim();
@@ -75,9 +77,9 @@ auth.command("login").description("Add or replace a named profile").requiredOpti
     try { account = await candidate.me(); stopValidation(true, "token valid"); }
     catch (error) { stopValidation(false, "validasi gagal"); throw error; }
     const stopSave = startFeedback("Menyimpan profile terenkripsi");
-    try { await saveProfile(opts.profile, gatewayUrl, token); stopSave(true); }
+    try { await saveProfile(profileName, gatewayUrl, token); stopSave(true); }
     catch (error) { stopSave(false); throw error; }
-    output({ ok: true, profile: opts.profile, gateway: gatewayUrl.replace(/\/+$/, ""), account: account.name, active: true, credentialStorage: "Windows DPAPI" });
+    output({ ok: true, profile: profileName, gateway: gatewayUrl.replace(/\/+$/, ""), account: account.name, active: true, credentialStorage: "Windows DPAPI" });
   } catch (error) { fail(error); }
 });
 auth.command("list").description("List saved profiles without exposing credentials").action(async () => {
