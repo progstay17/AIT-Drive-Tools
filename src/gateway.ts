@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
 import { mkdir as makeDirectory, readdir, rename as renameFile, rm, stat } from "node:fs/promises";
 import { basename, dirname, resolve } from "node:path";
-import { Readable } from "node:stream";
+import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { AppConfig } from "./config.js";
 
@@ -231,7 +231,7 @@ export class GatewayClient {
     return { results, succeeded: results.filter((x) => x.ok).length, failed: results.filter((x) => !x.ok).length };
   }
 
-  async download(drivePath: string, localPath: string, overwrite = false) {
+  async download(drivePath: string, localPath: string, overwrite = false, onProgress?: (loaded: number, total?: number) => void) {
     const destination = resolve(localPath);
     try {
       await stat(destination);
@@ -250,7 +250,21 @@ export class GatewayClient {
     const temporary = destination + ".ait-drive-part";
     await rm(temporary, { force: true });
     try {
-      await pipeline(Readable.fromWeb(response.body as import("node:stream/web").ReadableStream), createWriteStream(temporary, { flags: "wx" }));
+      const totalHeader = Number(response.headers.get("content-length"));
+      const total = Number.isFinite(totalHeader) && totalHeader > 0 ? totalHeader : undefined;
+      let loaded = 0;
+      const progress = new Transform({
+        transform(chunk: Buffer, _encoding, callback) {
+          loaded += chunk.length;
+          onProgress?.(loaded, total);
+          callback(null, chunk);
+        }
+      });
+      await pipeline(
+        Readable.fromWeb(response.body as import("node:stream/web").ReadableStream),
+        progress,
+        createWriteStream(temporary, { flags: "wx" })
+      );
       if (overwrite) await rm(destination, { force: true });
       await renameFile(temporary, destination);
     } catch (error) {
