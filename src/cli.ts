@@ -63,7 +63,9 @@ program.hook("postAction", (_thisCommand, actionCommand) => {
 
 
 const auth = program.command("auth").description("Manage encrypted local AIT Drive profiles");
-auth.command("login").description("Add or replace a named profile").requiredOption("--profile <name>").action(async (opts) => {
+auth.command("login").description("Add or replace a named profile").action(async () => {
+  const profileName = program.opts().profile as string | undefined;
+  if (!profileName) { console.error("Missing profile name. Usage: ait-drive auth login --profile <name>"); process.exitCode = 1; return; }
   try {
     const rl = createInterface({ input: process.stdin, output: process.stdout });
     const gatewayUrl = (await rl.question("Gateway URL (https://...): ")).trim();
@@ -75,9 +77,9 @@ auth.command("login").description("Add or replace a named profile").requiredOpti
     try { account = await candidate.me(); stopValidation(true, "token valid"); }
     catch (error) { stopValidation(false, "validasi gagal"); throw error; }
     const stopSave = startFeedback("Menyimpan profile terenkripsi");
-    try { await saveProfile(opts.profile, gatewayUrl, token); stopSave(true); }
+    try { await saveProfile(profileName, gatewayUrl, token); stopSave(true); }
     catch (error) { stopSave(false); throw error; }
-    output({ ok: true, profile: opts.profile, gateway: gatewayUrl.replace(/\/+$/, ""), account: account.name, active: true, credentialStorage: "Windows DPAPI" });
+    output({ ok: true, profile: profileName, gateway: gatewayUrl.replace(/\/+$/, ""), account: account.name, active: true, credentialStorage: "Windows DPAPI" });
   } catch (error) { fail(error); }
 });
 auth.command("list").description("List saved profiles without exposing credentials").action(async () => {
@@ -96,10 +98,10 @@ auth.command("status").description("Show active profile and authenticated accoun
 auth.command("logout").description("Remove a local profile; optionally revoke its PAT first").option("--profile <name>", "Profile to remove (defaults to active)").option("--revoke", "Revoke this PAT on the Gateway before removing the local profile").action(async (opts) => {
   try {
     if (opts.revoke) {
-      const cfg = loadConfig({}, opts.profile || program.opts().profile);
+      const cfg = loadConfig({}, profileName || program.opts().profile);
       await new GatewayClient(cfg).revokeSelf();
     }
-    const result = await deleteProfile(opts.profile || program.opts().profile);
+    const result = await deleteProfile(profileName || program.opts().profile);
     output({ ok: true, loggedOut: result.name, activeProfile: result.activeProfile || null, revokedOnGateway: Boolean(opts.revoke) });
   } catch (error) { fail(error); }
 });
