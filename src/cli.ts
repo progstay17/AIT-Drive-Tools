@@ -151,9 +151,9 @@ async function hiddenPrompt(label: string): Promise<string> {
     const input = process.stdin;
     const onData = (chunk: Buffer) => {
       for (const char of chunk.toString("utf8")) {
-        if (char === "\\u0003") { cleanup(); reject(new Error("Login dibatalkan.")); return; }
-        if (char === "\\r" || char === "\\n") { cleanup(); process.stderr.write("\\n"); resolve(value); return; }
-        if (char === "\\u007f" || char === "\\b") value = value.slice(0, -1);
+        if (char === "\u0003") { cleanup(); reject(new Error("Login dibatalkan.")); return; }
+        if (char === "\r" || char === "\n") { cleanup(); process.stderr.write("\n"); resolve(value); return; }
+        if (char === "\u007f" || char === "\b") value = value.slice(0, -1);
         else if (char >= " ") value += char;
       }
     };
