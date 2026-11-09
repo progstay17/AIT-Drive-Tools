@@ -59,6 +59,10 @@ export class GatewayClient {
     }));
   }
 
+  async revokeSelf() {
+    return this.postJson<{ ok: true }>("/api/token/revoke-self", {});
+  }
+
   async me() {
     return this.getJson<{ id: string; name: string; role: string; quota: number | null; perms: Record<string, boolean>; canAdmin: boolean }>("/api/me");
   }
