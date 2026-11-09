@@ -40,7 +40,7 @@ auth.command("status").description("Show active profile and authenticated accoun
 auth.command("logout").description("Remove a local profile; optionally revoke its PAT first").option("--profile <name>", "Profile to remove (defaults to active)").option("--revoke", "Revoke this PAT on the Gateway before removing the local profile").action(async (opts) => {
   try {
     if (opts.revoke) {
-      const cfg = loadConfig(process.env, opts.profile || program.opts().profile);
+      const cfg = loadConfig({}, opts.profile || program.opts().profile);
       await new GatewayClient(cfg).revokeSelf();
     }
     const result = await deleteProfile(opts.profile || program.opts().profile);
@@ -49,7 +49,7 @@ auth.command("logout").description("Remove a local profile; optionally revoke it
 });
 
 program.command("config").description("Validate local connection configuration").action(() => {
-  try { const c = loadConfig(); output({ ok: true, gateway: c.baseUrl, tokenConfigured: Boolean(c.token), tokenAuth: c.token ? "bearer" : "not-configured" }); }
+  try { const c = loadConfig(process.env, program.opts().profile); output({ ok: true, gateway: c.baseUrl, tokenConfigured: Boolean(c.token), tokenAuth: c.token ? "bearer" : "not-configured" }); }
   catch (error) { fail(error); }
 });
 program.command("account").description("Show authenticated account and current permissions").action(async () => {
