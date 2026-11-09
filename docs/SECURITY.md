@@ -28,3 +28,8 @@ The Gateway supports scoped Personal Access Tokens through the `Authorization: B
 - Never expose Agent port 4001 publicly.
 - Never send Agent URL or AGENT_TOKEN to an AI client.
 - Use standard Gateway APIs only.
+
+
+## Dependency security
+
+The MCP runtime uses `@modelcontextprotocol/sdk` `^1.32.2` and Zod `^4.6.7` as minimum compatible security floors. CI runs `npm audit --audit-level=high` after installation so newly introduced high/critical advisories block a merge. Review and update dependency floors when upstream advisories are published.
