@@ -149,3 +149,82 @@ test("batch share returns per-item success and failure", async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+
+test("plans recursive folder uploads without following symbolic links", async () => {
+  const { mkdtemp, mkdir, writeFile, symlink, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const dir = await mkdtemp(join(tmpdir(), "ait-tools-folder-plan-"));
+  const root = join(dir, "dataset");
+  await mkdir(join(root, "nested", "deep"), { recursive: true });
+  await writeFile(join(root, "root.txt"), "root");
+  await writeFile(join(root, "nested", "deep", "child.csv"), "child-data");
+  await symlink(join(root, "root.txt"), join(root, "linked.txt"));
+  try {
+    const plan = await new GatewayClient({ baseUrl: "https://drive.example.com", token: "pat-secret" }).planUploadFolder(root, "Incoming");
+    assert.equal(plan.targetRoot, "Incoming/dataset");
+    assert.equal(plan.fileCount, 2);
+    assert.equal(plan.directoryCount, 3);
+    assert.equal(plan.totalBytes, 14);
+    assert.deepEqual(plan.skipped, ["linked.txt"]);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("uploads folder hierarchy before streaming each file", async () => {
+  const { mkdtemp, mkdir, writeFile, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const dir = await mkdtemp(join(tmpdir(), "ait-tools-folder-upload-"));
+  const root = join(dir, "dataset");
+  await mkdir(join(root, "nested"), { recursive: true });
+  await writeFile(join(root, "root.txt"), "root");
+  await writeFile(join(root, "nested", "child.txt"), "child");
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{ path: string; body?: string }> = [];
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(String(input));
+    if (url.pathname === "/api/upload") {
+      const chunks: Buffer[] = [];
+      for await (const chunk of init?.body as AsyncIterable<Uint8Array>) chunks.push(Buffer.from(chunk));
+      calls.push({ path: url.searchParams.get("path") || "", body: Buffer.concat(chunks).toString("utf8") });
+      return new Response(JSON.stringify({ saved: ["ok"] }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    calls.push({ path: url.pathname, body: String(init?.body || "") });
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
+  }) as typeof fetch;
+  try {
+    const result = await new GatewayClient({ baseUrl: "https://drive.example.com", token: "pat-secret" }).uploadFolder(root, "Incoming");
+    assert.equal(result.targetRoot, "Incoming/dataset");
+    assert.equal(result.filesUploaded, 2);
+    assert.equal(result.filesFailed, 0);
+    assert.deepEqual(calls.filter((x) => x.path === "/api/mkdir").map((x) => JSON.parse(x.body || "{}")), [
+      { path: "Incoming", name: "dataset" },
+      { path: "Incoming/dataset", name: "nested" }
+    ]);
+    assert.deepEqual(calls.filter((x) => x.path !== "/api/mkdir").map((x) => x.path).sort(), ["Incoming/dataset", "Incoming/dataset/nested"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("batch move returns per-item results without hiding failures", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const body = JSON.parse(String(init?.body || "{}")) as { path?: string };
+    if (body.path === "missing.txt") return new Response(JSON.stringify({ error: "not found" }), { status: 404 });
+    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+  }) as typeof fetch;
+  try {
+    const result = await new GatewayClient({ baseUrl: "https://drive.example.com", token: "pat-secret" }).moveMany(["one.txt", "missing.txt"], "Archive");
+    assert.equal(result.succeeded, 1);
+    assert.equal(result.failed, 1);
+    assert.equal(result.results[1]?.path, "missing.txt");
+    assert.equal(result.results[1]?.ok, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

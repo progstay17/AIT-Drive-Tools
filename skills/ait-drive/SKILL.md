@@ -38,6 +38,9 @@ ait-drive --json files delete --path "old.csv" --yes
 ait-drive --json files trash list
 ait-drive --json files trash restore --id "TRASH_ITEM_ID"
 ait-drive --json upload --local ".\\data\\sample.csv" --to "Incoming"
+ait-drive --json upload-folder --local ".\\dataset" --to "Incoming" --dry-run
+ait-drive --json upload-folder --local ".\\dataset" --to "Incoming" --yes
+ait-drive --json files move-many --paths "a.csv" "b.csv" --dest "Archive" --dry-run
 ait-drive --json download --path "Reports/summary.xlsx" --to ".\\summary.xlsx"
 ait-drive --json share --path "Reports/summary.xlsx" --days 7
 ait-drive --json share-many --paths "a.csv" "b.csv" --dry-run

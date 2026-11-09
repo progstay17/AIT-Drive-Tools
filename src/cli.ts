@@ -35,6 +35,10 @@ files.command("move").description("Move a file or folder").requiredOption("--pat
   if (!authorizeMutation(opts, "move", { path: opts.path, destination: opts.dest })) return;
   try { output({ path: opts.path, destination: opts.dest, ...(await client().move(opts.path, opts.dest)) }); } catch (error) { fail(error); }
 });
+files.command("move-many").description("Move multiple files or folders to one destination").requiredOption("--paths <paths...>").requiredOption("--dest <folder>").option("--yes", "Confirm the operation").option("--dry-run", "Show the plan without changing files").action(async (opts) => {
+  if (!authorizeMutation(opts, "move-many", { paths: opts.paths, destination: opts.dest })) return;
+  try { output(await client().moveMany(opts.paths, opts.dest)); } catch (error) { fail(error); }
+});
 files.command("delete").description("Move a file or folder to Trash").requiredOption("--path <path>").option("--yes", "Confirm the operation").option("--dry-run", "Show the plan without changing files").action(async (opts) => {
   if (!authorizeMutation(opts, "delete-to-trash", { path: opts.path })) return;
   try { output({ path: opts.path, ...(await client().delete(opts.path)) }); } catch (error) { fail(error); }
@@ -49,6 +53,17 @@ trash.command("restore").description("Restore a Trash item to its original path"
 
 program.command("upload").description("Upload one local file to AIT Drive").requiredOption("--local <file>").option("--to <folder>", "Destination folder in Drive", "").action(async (opts) => {
   try { output({ local: resolve(opts.local), destination: opts.to, ...(await client().upload(opts.local, opts.to)) }); } catch (error) { fail(error); }
+});
+program.command("upload-folder").description("Recursively upload a local folder and its subfolders").requiredOption("--local <folder>").option("--to <folder>", "Destination folder in Drive", "").option("--yes", "Confirm the bulk upload").option("--dry-run", "Preview files and total size without uploading").action(async (opts) => {
+  try {
+    const api = client();
+    const plan = await api.planUploadFolder(opts.local, opts.to);
+    if (!authorizeMutation(opts, "upload-folder", {
+      source: plan.source, target: plan.targetRoot, fileCount: plan.fileCount,
+      directoryCount: plan.directoryCount, totalBytes: plan.totalBytes, skipped: plan.skipped
+    })) return;
+    output(await api.uploadFolder(opts.local, opts.to));
+  } catch (error) { fail(error); }
 });
 program.command("download").description("Download a file or folder ZIP to the local machine").requiredOption("--path <drive-path>").requiredOption("--to <local-path>").option("--overwrite", "Replace an existing local file").action(async (opts) => {
   try { output(await client().download(opts.path, opts.to, Boolean(opts.overwrite))); } catch (error) { fail(error); }

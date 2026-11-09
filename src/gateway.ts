@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
-import { mkdir as makeDirectory, rename as renameFile, rm, stat } from "node:fs/promises";
+import { mkdir as makeDirectory, readdir, rename as renameFile, rm, stat } from "node:fs/promises";
 import { basename, dirname, resolve } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -116,7 +116,7 @@ export class GatewayClient {
     return { results, succeeded: results.filter((x) => x.ok).length, failed: results.filter((x) => !x.ok).length };
   }
 
-  async upload(localPath: string, destinationFolder = "") {
+  async upload(localPath: string, destinationFolder = "", onProgress?: (loaded: number, total: number) => void) {
     const source = resolve(localPath);
     const info = await stat(source);
     if (!info.isFile()) throw new Error("Upload source must be a regular file.");
@@ -128,7 +128,12 @@ export class GatewayClient {
     const suffix = Buffer.from(`\r\n--${boundary}--\r\n`);
     const body = Readable.from((async function* () {
       yield prefix;
-      for await (const chunk of createReadStream(source)) yield chunk;
+      let loaded = 0;
+      for await (const chunk of createReadStream(source)) {
+        loaded += chunk.length;
+        onProgress?.(loaded, info.size);
+        yield chunk;
+      }
       yield suffix;
     })());
     const headers = this.authHeaders({
@@ -143,6 +148,87 @@ export class GatewayClient {
     } as unknown as RequestInit & { duplex: "half" };
     const response = await fetch(url, init);
     return this.jsonResult<{ saved: string[] }>(response);
+  }
+
+  async planUploadFolder(localPath: string, destinationFolder = "") {
+    const root = resolve(localPath);
+    const rootInfo = await stat(root);
+    if (!rootInfo.isDirectory()) throw new Error("Upload folder source must be a directory.");
+    const directories: string[] = [];
+    const files: Array<{ localPath: string; relativePath: string; size: number }> = [];
+    const skipped: string[] = [];
+    const walk = async (current: string, relative = ""): Promise<void> => {
+      const entries = await readdir(current, { withFileTypes: true });
+      entries.sort((a, b) => a.name.localeCompare(b.name));
+      for (const entry of entries) {
+        const childPath = resolve(current, entry.name);
+        const childRelative = relative ? relative + "/" + entry.name : entry.name;
+        if (entry.isSymbolicLink()) { skipped.push(childRelative); continue; }
+        if (entry.isDirectory()) {
+          directories.push(childRelative);
+          await walk(childPath, childRelative);
+        } else if (entry.isFile()) {
+          const info = await stat(childPath);
+          files.push({ localPath: childPath, relativePath: childRelative, size: info.size });
+          if (files.length > 5000) throw new Error("Folder upload is limited to 5,000 files per run.");
+        } else {
+          skipped.push(childRelative);
+        }
+      }
+    };
+    await walk(root);
+    const rootName = basename(root);
+    const targetRoot = [destinationFolder.replace(/^\/+|\/+$/g, ""), rootName].filter(Boolean).join("/");
+    return {
+      source: root, rootName, destinationFolder, targetRoot, directories, files, skipped,
+      fileCount: files.length, directoryCount: directories.length + 1,
+      totalBytes: files.reduce((sum, file) => sum + file.size, 0)
+    };
+  }
+
+  async uploadFolder(
+    localPath: string,
+    destinationFolder = "",
+    onProgress?: (relativePath: string, loaded: number, total: number) => void
+  ) {
+    const plan = await this.planUploadFolder(localPath, destinationFolder);
+    await this.mkdir(destinationFolder, plan.rootName);
+    for (const relative of plan.directories) {
+      const parts = relative.split("/");
+      const name = parts.pop()!;
+      const parent = [plan.targetRoot, ...parts].filter(Boolean).join("/");
+      await this.mkdir(parent, name);
+    }
+    const results: Array<{ path: string; ok: boolean; saved?: string[]; error?: string }> = [];
+    for (const file of plan.files) {
+      const parent = file.relativePath.includes("/") ? file.relativePath.slice(0, file.relativePath.lastIndexOf("/")) : "";
+      const target = [plan.targetRoot, parent].filter(Boolean).join("/");
+      try {
+        const uploaded = await this.upload(file.localPath, target, (loaded, total) => onProgress?.(file.relativePath, loaded, total));
+        results.push({ path: file.relativePath, ok: true, saved: uploaded.saved });
+      } catch (error) {
+        results.push({ path: file.relativePath, ok: false, error: error instanceof Error ? error.message : String(error) });
+      }
+    }
+    return {
+      targetRoot: plan.targetRoot, directoriesCreated: plan.directoryCount,
+      filesUploaded: results.filter((x) => x.ok).length,
+      filesFailed: results.filter((x) => !x.ok).length,
+      bytesPlanned: plan.totalBytes, skipped: plan.skipped, results
+    };
+  }
+
+  async moveMany(paths: string[], destination: string) {
+    const results: Array<{ path: string; ok: boolean; error?: string }> = [];
+    for (const path of paths) {
+      try {
+        await this.move(path, destination);
+        results.push({ path, ok: true });
+      } catch (error) {
+        results.push({ path, ok: false, error: error instanceof Error ? error.message : String(error) });
+      }
+    }
+    return { results, succeeded: results.filter((x) => x.ok).length, failed: results.filter((x) => !x.ok).length };
   }
 
   async download(drivePath: string, localPath: string, overwrite = false) {
