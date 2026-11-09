@@ -3,12 +3,12 @@
 ## Phase 0 — repository foundation
 - [x] Separate repository created.
 - [x] Define Gateway-first architecture and security boundary.
-- [ ] CI, typecheck, tests, release workflow.
+- [x] CI, typecheck, tests.
 
 ## Phase 1 — read-only CLI + MCP
-- [ ] Gateway-issued revocable personal access tokens.
-- [ ] Authenticated identity / permission introspection.
-- [ ] List, search, storage stats.
+- [x] Gateway-issued revocable personal access tokens.
+- [x] Authenticated identity / permission introspection.
+- [x] List, search, storage stats.
 - [ ] CLI and MCP parity tests.
 
 ## Phase 2 — safe file operations
