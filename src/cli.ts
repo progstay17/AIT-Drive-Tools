@@ -52,7 +52,10 @@ trash.command("restore").description("Restore a Trash item to its original path"
 });
 
 program.command("upload").description("Upload one local file to AIT Drive").requiredOption("--local <file>").option("--to <folder>", "Destination folder in Drive", "").action(async (opts) => {
-  try { output({ local: resolve(opts.local), destination: opts.to, ...(await client().upload(opts.local, opts.to)) }); } catch (error) { fail(error); }
+  try {
+    const result = await client().upload(opts.local, opts.to, (loaded, total) => showProgress(opts.local, loaded, total));
+    finishProgress(); output({ local: resolve(opts.local), destination: opts.to, ...result });
+  } catch (error) { finishProgress(); fail(error); }
 });
 program.command("upload-folder").description("Recursively upload a local folder and its subfolders").requiredOption("--local <folder>").option("--to <folder>", "Destination folder in Drive", "").option("--yes", "Confirm the bulk upload").option("--dry-run", "Preview files and total size without uploading").action(async (opts) => {
   try {
@@ -62,11 +65,15 @@ program.command("upload-folder").description("Recursively upload a local folder 
       source: plan.source, target: plan.targetRoot, fileCount: plan.fileCount,
       directoryCount: plan.directoryCount, totalBytes: plan.totalBytes, skipped: plan.skipped
     })) return;
-    output(await api.uploadFolder(opts.local, opts.to));
+    const result = await api.uploadFolder(opts.local, opts.to, (relative, loaded, total) => showProgress(relative, loaded, total));
+    finishProgress(); output(result);
   } catch (error) { fail(error); }
 });
 program.command("download").description("Download a file or folder ZIP to the local machine").requiredOption("--path <drive-path>").requiredOption("--to <local-path>").option("--overwrite", "Replace an existing local file").action(async (opts) => {
-  try { output(await client().download(opts.path, opts.to, Boolean(opts.overwrite))); } catch (error) { fail(error); }
+  try {
+    const result = await client().download(opts.path, opts.to, Boolean(opts.overwrite), (loaded, total) => showProgress(opts.path, loaded, total));
+    finishProgress(); output(result);
+  } catch (error) { finishProgress(); fail(error); }
 });
 program.command("share").description("Create a read-only share link for a file or folder ZIP").requiredOption("--path <path>").option("--days <days>", "Expiry in days", "7").action(async (opts) => {
   try {
@@ -103,6 +110,16 @@ function authorizeMutation(opts: { yes?: boolean; dryRun?: boolean }, operation:
     return false;
   }
   return true;
+}
+function showProgress(label: string, loaded: number, total?: number): void {
+  if (!process.stderr.isTTY || program.opts().json) return;
+  const size = (n: number) => n < 1024 ? n + " B" : n < 1024 ** 2 ? (n / 1024).toFixed(1) + " KB" : n < 1024 ** 3 ? (n / 1024 ** 2).toFixed(1) + " MB" : (n / 1024 ** 3).toFixed(2) + " GB";
+  const suffix = total ? ` / ${size(total)} (${Math.min(100, Math.round(loaded / total * 100))}%)` : "";
+  process.stderr.write(`\\r${label}: ${size(loaded)}${suffix}`);
+  if (total && loaded >= total) process.stderr.write("\\n");
+}
+function finishProgress(): void {
+  if (process.stderr.isTTY && !program.opts().json) process.stderr.write("\\n");
 }
 function output(value: unknown) {
   if (program.opts().json || !process.stdout.isTTY) console.log(JSON.stringify(value));
