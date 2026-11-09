@@ -1,25 +1,49 @@
 # Gateway integration contract
 
-The current Gateway API reference is maintained in [AIT-Drive](https://github.com/progstay17/AIT-Drive/blob/main/docs/API.md).
+The Gateway API reference is maintained in [AIT-Drive](https://github.com/progstay17/AIT-Drive/blob/main/docs/API.md).
 
-## Existing endpoints used by the first client layer
+## Authentication
+
+The Gateway now accepts scoped Personal Access Tokens (PATs) on supported `/api/*` endpoints:
+
+```http
+Authorization: Bearer aitd_<id>.<secret>
+```
+
+Create, list, and revoke tokens from an authenticated browser session:
+- `GET /api/tokens`
+- `POST /api/tokens` with `{ "label": "Desktop CLI", "scopes": ["read", "upload", "modify"], "expiresInDays": 365 }`
+- `DELETE /api/tokens/:id`
+
+The create response contains the token secret exactly once. Gateway stores only its SHA-256 digest. Supported scopes are `read`, `upload`, `modify`, `delete`, and `share`; `read` is always included. Requested write scopes must be permitted by the account. Current account permissions and active status are rechecked on every request. PATs cannot manage tokens, change passwords, or access admin endpoints.
+
+Set the token in the local environment or secret manager:
+
+```powershell
+$env:AIT_DRIVE_URL = "https://your-drive.example"
+$env:AIT_DRIVE_TOKEN = "aitd_<id>.<secret>"
+ait-drive config --json
+ait-drive account --json
+ait-drive files list --path "" --json
+```
+
+Never commit the token to Git, paste it into prompts, or print it in diagnostics. Do not scrape or persist browser `sid` cookies and do not store account passwords.
+
+## Client contract
+
+The CLI and MCP use the same `GatewayClient` service layer:
 - `GET /api/list?path=`
 - `GET /api/search?q=`
 - `GET /api/stats`
+- `GET /api/me`
 - `POST /api/share` with `{ path, days }`
 
-All currently require a valid browser `sid` cookie. The client code intentionally refuses to make requests without `AIT_DRIVE_TOKEN`, but the Gateway does not yet accept Bearer tokens. This is an explicit integration blocker, not a configuration mistake.
+The Gateway remains the sole authority for account identity, permissions, quotas, and storage-node routing. Tools never connect to Agent endpoints or storage roots directly.
 
-## Required Gateway change (separate PR in AIT-Drive)
-Introduce a personal access token subsystem without changing existing browser sessions:
-- Create/revoke/list tokens through authenticated account endpoints.
-- Store only a cryptographic hash of each token in the persistent account database.
-- Token prefix/identifier may be stored for display; secret is returned only once.
-- Include account ID, token ID, scopes, created-at, optional expiry and last-used.
-- Bearer middleware resolves the token to the account and then calls the same `resolveCtx` / permission enforcement path as cookie sessions.
-- Re-check account active state and current permissions on every request.
-- Owner/admin tokens must have explicit policy; no privilege escalation by caller-provided scopes.
-- Existing cookie auth and CSRF behavior remain unchanged.
-- Add tests for invalid, expired, revoked, disabled-account, permission-change, and scope-denial cases.
+## Security and deployment boundaries
 
-Do not add PAT support by weakening CSRF checks for browser sessions. Bearer-token requests are a separate authentication mechanism with their own authorization checks.
+- Bearer authentication is separate from browser-cookie sessions; browser CSRF protections remain unchanged.
+- An invalid Authorization header never falls back to a valid browser cookie.
+- Require HTTPS except loopback development.
+- Never expose Agent port 4001 or send Agent URL/AGENT_TOKEN to an AI client.
+- No CLI/MCP operation deploys to Coolify or modifies Gateway/Agent environment variables.
