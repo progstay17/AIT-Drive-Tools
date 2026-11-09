@@ -1,0 +1,8 @@
+{
+  "name": "@ait-drive/tools", "version": "0.1.0", "private": false,
+  "description": "CLI and MCP tools for AIT Drive", "license": "UNLICENSED",
+  "engines": { "node": ">=20" }, "bin": { "ait-drive": "dist/cli.js" }, "type": "module",
+  "scripts": { "build": "tsc -p tsconfig.json", "typecheck": "tsc --noEmit -p tsconfig.json", "test": "tsx --test tests/*.test.ts", "dev": "tsx src/cli.ts", "mcp": "tsx src/mcp.ts" },
+  "dependencies": { "@modelcontextprotocol/sdk": "^1.12.1", "commander": "^13.1.0", "zod": "^3.24.2" },
+  "devDependencies": { "@types/node": "^22.13.10", "tsx": "^4.19.3", "typescript": "^5.8.2" }
+}
