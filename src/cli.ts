@@ -72,9 +72,9 @@ program.command("export-search").description("Export search results as a CSV spr
     const columns = ["name", "path", "type", "size", "mtime"] as const;
     const cell = (value: unknown) => {
       const raw = value == null ? "" : String(value);
-      return /[",\\r\\n]/.test(raw) ? '"' + raw.replace(/"/g, '""') + '"' : raw;
+      return /[",\r\n]/.test(raw) ? '"' + raw.replace(/"/g, '""') + '"' : raw;
     };
-    const csv = [columns.join(","), ...result.items.map((item) => columns.map((key) => cell(item[key])).join(","))].join("\\r\\n") + "\\r\\n";
+    const csv = [columns.join(","), ...result.items.map((item) => columns.map((key) => cell(item[key])).join(","))].join("\r\n") + "\r\n";
     const destination = resolve(opts.to);
     await writeFile(destination, csv, { flag: "wx" });
     output({ path: destination, rows: result.items.length, format: "csv" });
