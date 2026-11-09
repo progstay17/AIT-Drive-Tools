@@ -15,7 +15,7 @@
 - [x] Upload/download with streaming (progress reporting remains open).
 - [x] Create folder, rename, move, trash, restore.
 - [x] Preview/dry-run and explicit confirmation for rename, move, delete, and batch share.
-- [ ] Transfer task reporting.
+- [x] CLI byte-progress reporting for uploads and downloads (persistent transfer history remains open).
 
 ## Phase 3 — high-level workflows
 - [x] Batch share with per-item results.
