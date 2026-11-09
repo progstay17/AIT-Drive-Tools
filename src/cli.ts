@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { writeFile } from "node:fs/promises";
-import { createInterface } from "node:readline";
+import { createInterface } from "node:readline/promises.js";
 import { resolve } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "./config.js";
