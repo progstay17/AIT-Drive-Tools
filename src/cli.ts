@@ -67,7 +67,7 @@ program.command("upload-folder").description("Recursively upload a local folder 
     })) return;
     const result = await api.uploadFolder(opts.local, opts.to, (relative, loaded, total) => showProgress(relative, loaded, total));
     finishProgress(); output(result);
-  } catch (error) { fail(error); }
+  } catch (error) { finishProgress(); fail(error); }
 });
 program.command("download").description("Download a file or folder ZIP to the local machine").requiredOption("--path <drive-path>").requiredOption("--to <local-path>").option("--overwrite", "Replace an existing local file").action(async (opts) => {
   try {
@@ -115,11 +115,11 @@ function showProgress(label: string, loaded: number, total?: number): void {
   if (!process.stderr.isTTY || program.opts().json) return;
   const size = (n: number) => n < 1024 ? n + " B" : n < 1024 ** 2 ? (n / 1024).toFixed(1) + " KB" : n < 1024 ** 3 ? (n / 1024 ** 2).toFixed(1) + " MB" : (n / 1024 ** 3).toFixed(2) + " GB";
   const suffix = total ? ` / ${size(total)} (${Math.min(100, Math.round(loaded / total * 100))}%)` : "";
-  process.stderr.write(`\\r${label}: ${size(loaded)}${suffix}`);
-  if (total && loaded >= total) process.stderr.write("\\n");
+  process.stderr.write(`\r${label}: ${size(loaded)}${suffix}`);
+  if (total && loaded >= total) process.stderr.write("\n");
 }
 function finishProgress(): void {
-  if (process.stderr.isTTY && !program.opts().json) process.stderr.write("\\n");
+  if (process.stderr.isTTY && !program.opts().json) process.stderr.write("\n");
 }
 function output(value: unknown) {
   if (program.opts().json || !process.stdout.isTTY) console.log(JSON.stringify(value));
