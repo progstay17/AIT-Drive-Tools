@@ -83,7 +83,10 @@ program.command("export-search").description("Export search results as a CSV spr
 
 function authorizeMutation(opts: { yes?: boolean; dryRun?: boolean }, operation: string, details: unknown): boolean {
   if (opts.dryRun) { output({ dryRun: true, operation, details }); return false; }
-  if (!opts.yes) throw new Error(`Operation "${operation}" changes Drive data. Add --yes to confirm or --dry-run to preview.`);
+  if (!opts.yes) {
+    fail(new Error(`Operation "${operation}" changes Drive data. Add --yes to confirm or --dry-run to preview.`));
+    return false;
+  }
   return true;
 }
 function output(value: unknown) {
