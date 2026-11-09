@@ -18,10 +18,10 @@ auth.command("login").description("Add or replace a named profile").requiredOpti
     const gatewayUrl = (await rl.question("Gateway URL (https://...): ")).trim();
     rl.close();
     const token = await hiddenPrompt("Personal Access Token (input hidden): ");
-    const candidate = new GatewayClient({ baseUrl: gatewayUrl.replace(/\\/$/, ""), token });
+    const candidate = new GatewayClient({ baseUrl: gatewayUrl.replace(/\/+$/, ""), token });
     const account = await candidate.me();
     await saveProfile(opts.profile, gatewayUrl, token);
-    output({ ok: true, profile: opts.profile, gateway: gatewayUrl.replace(/\\/$/, ""), account: account.name, active: true, credentialStorage: "Windows DPAPI" });
+    output({ ok: true, profile: opts.profile, gateway: gatewayUrl.replace(/\/+$/, ""), account: account.name, active: true, credentialStorage: "Windows DPAPI" });
   } catch (error) { fail(error); }
 });
 auth.command("list").description("List saved profiles without exposing credentials").action(async () => {
