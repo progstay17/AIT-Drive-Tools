@@ -178,7 +178,7 @@ export class GatewayClient {
     };
     await walk(root);
     const rootName = basename(root);
-    const targetRoot = [destinationFolder.replace(/^\\/+|\\/+$/g, ""), rootName].filter(Boolean).join("/");
+    const targetRoot = [destinationFolder.replace(/^\/+|\/+$/g, ""), rootName].filter(Boolean).join("/");
     return {
       source: root, rootName, destinationFolder, targetRoot, directories, files, skipped,
       fileCount: files.length, directoryCount: directories.length + 1,
