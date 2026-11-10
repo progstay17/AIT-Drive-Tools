@@ -153,7 +153,7 @@ test("creates a custom share URL slug through the Gateway API", async () => {
     assert.equal(capturedBody.slug, "mining-bayu");
     assert.equal(result.custom, true);
     assert.equal(result.slug, "mining-bayu");
-    assert.match(result.url, /\\/go\\/mining-bayu$/);
+    assert.equal(result.url, "https://drive.example.com/go/mining-bayu");
   } finally {
     globalThis.fetch = originalFetch;
   }
