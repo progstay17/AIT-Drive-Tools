@@ -25,6 +25,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     { name: "ait_drive_upload_folder", description: "Recursively upload a local folder and subfolders. Requires confirm=true or dryRun=true.", inputSchema: { type: "object", properties: { localPath: { type: "string", minLength: 1 }, destinationFolder: { type: "string", default: "" }, ...confirmSchema }, required: ["localPath"] } },
     { name: "ait_drive_download_file", description: "Download a Drive file or folder ZIP to a local path. Existing local files are protected unless overwrite=true.", inputSchema: { type: "object", properties: { drivePath: { type: "string", minLength: 1 }, localPath: { type: "string", minLength: 1 }, overwrite: { type: "boolean", default: false } }, required: ["drivePath", "localPath"] } },
     { name: "ait_drive_create_share_link", description: "Create a read-only share link for one file or folder ZIP. Expiry is 1–30 days.", inputSchema: { type: "object", properties: { path: { type: "string" }, days: { type: "integer", minimum: 1, maximum: 30, default: 7 }, slug: { type: "string", minLength: 3, maxLength: 48, description: "Optional custom URL slug; lowercase letters, numbers, and hyphens recommended." } }, required: ["path"] } },
+    { name: "ait_drive_list_share_links", description: "List share links created by the authenticated account. Requires Share permission.", inputSchema: { type: "object", properties: {} } },
+    { name: "ait_drive_get_share_link", description: "Get details for one share link created by the authenticated account.", inputSchema: { type: "object", properties: { slug: { type: "string", minLength: 1 } }, required: ["slug"] } },
+    { name: "ait_drive_revoke_share_link", description: "Revoke one of the authenticated account's public share links. Requires confirm=true or dryRun=true.", inputSchema: { type: "object", properties: { slug: { type: "string", minLength: 1 }, ...confirmSchema }, required: ["slug"] } },
     { name: "ait_drive_create_share_links", description: "Create multiple share links. Requires confirm=true or dryRun=true and returns per-item results.", inputSchema: { type: "object", properties: { paths: { type: "array", items: { type: "string", minLength: 1 }, minItems: 1, maxItems: 100 }, days: { type: "integer", minimum: 1, maximum: 30, default: 7 }, ...confirmSchema }, required: ["paths"] } }
   ]
 }));
@@ -98,6 +101,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "ait_drive_create_share_link": {
         const input = z.object({ path: z.string().min(1), days: z.number().int().min(1).max(30).optional().default(7), slug: z.string().min(3).max(48).optional() }).parse(args);
         result = await client().share(input.path, input.days, input.slug); break;
+      }
+      case "ait_drive_list_share_links": result = await client().listShares(); break;
+      case "ait_drive_get_share_link": {
+        const input = z.object({ slug: z.string().min(1) }).parse(args);
+        result = await client().getShare(input.slug); break;
+      }
+      case "ait_drive_revoke_share_link": {
+        const input = z.object({ slug: z.string().min(1), confirm: z.boolean().optional().default(false), dryRun: z.boolean().optional().default(false) }).parse(args);
+        if (input.dryRun) { result = { dryRun: true, operation: "revoke-share-link", slug: input.slug }; break; }
+        if (!input.confirm) throw new Error("Revoking a public share link changes Drive access. Set confirm=true or dryRun=true.");
+        result = await client().revokeShare(input.slug); break;
       }
       case "ait_drive_create_share_links": {
         const input = z.object({ paths: z.array(z.string().min(1)).min(1).max(100), days: z.number().int().min(1).max(30).optional().default(7), confirm: z.boolean().optional().default(false), dryRun: z.boolean().optional().default(false) }).parse(args);

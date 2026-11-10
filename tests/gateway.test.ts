@@ -159,6 +159,43 @@ test("creates a custom share URL slug through the Gateway API", async () => {
   }
 });
 
+test("lists, inspects, and revokes account-owned share links", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{ url: string; method: string; authorization: string | null }> = [];
+  const item = {
+    slug: "mining-bayu", url: "https://drive.example.com/go/mining-bayu", path: "Mining Rec",
+    createdAt: 1794000000000, expiresAt: 1794600000000, custom: true, status: "active"
+  };
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    calls.push({ url: String(input), method: init?.method || "GET", authorization: new Headers(init?.headers).get("Authorization") });
+    if ((init?.method || "GET") === "DELETE") {
+      return new Response(JSON.stringify({ ok: true, slug: "mining-bayu" }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    return new Response(JSON.stringify({ items: [item] }), { status: 200, headers: { "Content-Type": "application/json" } });
+  }) as typeof fetch;
+  try {
+    const client = new GatewayClient({ baseUrl: "https://drive.example.com", token: "pat-secret" });
+    const listed = await client.listShares();
+    assert.equal(listed.items[0]?.slug, "mining-bayu");
+    assert.deepEqual(await client.getShare("mining-bayu"), item);
+    await assert.rejects(() => client.getShare("missing"), /tidak ditemukan/);
+    const revoked = await client.revokeShare("mining-bayu");
+    assert.deepEqual(revoked, { ok: true, slug: "mining-bayu" });
+    assert.equal(new URL(calls[0]!.url).pathname, "/api/shares");
+    assert.equal(new URL(calls[3]!.url).pathname, "/api/shares/mining-bayu");
+    assert.equal(calls[3]!.method, "DELETE");
+    assert.ok(calls.every((call) => call.authorization === "Bearer pat-secret"));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("rejects an empty share slug before making a request", async () => {
+  const client = new GatewayClient({ baseUrl: "https://drive.example.com", token: "pat-secret" });
+  await assert.rejects(() => client.getShare("  "), /Slug link wajib diisi/);
+  await assert.rejects(() => client.revokeShare(""), /Slug link wajib diisi/);
+});
+
 test("batch share returns per-item success and failure", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -177,7 +214,7 @@ test("batch share returns per-item success and failure", async () => {
 });
 
 
-test("plans recursive folder uploads without following symbolic links", async () => {
+test("plans recursive folder uploads without following symbolic links", async (t) => {
   const { mkdtemp, mkdir, writeFile, symlink, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
@@ -186,7 +223,16 @@ test("plans recursive folder uploads without following symbolic links", async ()
   await mkdir(join(root, "nested", "deep"), { recursive: true });
   await writeFile(join(root, "root.txt"), "root");
   await writeFile(join(root, "nested", "deep", "child.csv"), "child-data");
-  await symlink(join(root, "root.txt"), join(root, "linked.txt"));
+  try {
+    await symlink(join(root, "root.txt"), join(root, "linked.txt"));
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && ["EPERM", "ENOTSUP", "EACCES"].includes(String(error.code))) {
+      await rm(dir, { recursive: true, force: true });
+      t.skip("Symbolic links are not permitted in this Windows environment.");
+      return;
+    }
+    throw error;
+  }
   try {
     const plan = await new GatewayClient({ baseUrl: "https://drive.example.com", token: "pat-secret" }).planUploadFolder(root, "Incoming");
     assert.equal(plan.targetRoot, "Incoming/dataset");

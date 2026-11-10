@@ -60,6 +60,29 @@ Slugs are globally unique, 3–48 characters after normalization, and use lowerc
 
 MCP clients can pass the optional `slug` field to `ait_drive_create_share_link`.
 
+### Manage your share links
+
+The account that created a short share URL can list, inspect, and revoke its own links. These commands require the Gateway `share` permission:
+
+```powershell
+# List links created by the current account
+ait-drive shares list
+
+# Inspect one link by its slug
+ait-drive shares info --slug "summary-report"
+
+# Preview revocation, then confirm it
+ait-drive shares revoke --slug "summary-report" --dry-run
+ait-drive shares revoke --slug "summary-report" --yes
+```
+
+Revoking a link removes its short-URL alias immediately; the slug can then be reused. A link created by another account is not visible or revocable from your account. Revocation requires explicit `--yes` in the CLI.
+
+MCP exposes the matching tools:
+- `ait_drive_list_share_links`
+- `ait_drive_get_share_link`
+- `ait_drive_revoke_share_link` (requires `confirm=true`; `dryRun=true` previews only)
+
 ## CLI activity and progress feedback
 
 Long-running CLI commands report activity instead of appearing idle:

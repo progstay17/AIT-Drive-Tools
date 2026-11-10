@@ -46,6 +46,9 @@ program.hook("preAction", (_thisCommand, actionCommand) => {
     "download": "Menghubungi Gateway dan menyiapkan download",
     "share": "Membuat share link",
     "share-many": "Membuat beberapa share link",
+    "shares list": "Memuat daftar link berbagi",
+    "shares info": "Memeriksa detail link berbagi",
+    "shares revoke": "Mencabut link berbagi",
     "export-search": "Mencari file dan mengekspor CSV"
   };
   const stop = startFeedback(labels[commandPath] || `Menjalankan ${commandPath || "perintah"}`);
@@ -179,6 +182,18 @@ program.command("share").description("Create a read-only share link for a file o
     output(await client().share(opts.path, days, opts.slug));
   } catch (error) { fail(error); }
 });
+const shares = program.command("shares").description("List, inspect, and revoke share links created by this account");
+shares.command("list").description("List share links created by the current account").action(async () => {
+  try { output(await client().listShares()); } catch (error) { fail(error); }
+});
+shares.command("info").description("Show details for one of your share links").requiredOption("--slug <slug>").action(async (opts) => {
+  try { output(await client().getShare(opts.slug)); } catch (error) { fail(error); }
+});
+shares.command("revoke").description("Revoke one of your share links").requiredOption("--slug <slug>").option("--yes", "Confirm revoking this public link").option("--dry-run", "Preview the revocation without changing anything").action(async (opts) => {
+  if (!authorizeMutation(opts, "revoke-share-link", { slug: opts.slug })) return;
+  try { output(await client().revokeShare(opts.slug)); } catch (error) { fail(error); }
+});
+
 program.command("share-many").description("Create multiple share links; use --dry-run to preview").requiredOption("--paths <paths...>").option("--days <days>", "Expiry in days", "7").option("--yes", "Confirm creation of all share links").option("--dry-run", "Preview paths without creating links").action(async (opts) => {
   const days = Number(opts.days);
   if (!Number.isInteger(days) || days < 1 || days > 30) return fail(new Error("--days must be an integer from 1 to 30."));
