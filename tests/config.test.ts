@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadConfig } from "../src/config.js";
 
-test("requires a Gateway URL when no matching profile exists", () => assert.throws(() => loadConfig({}, "missing-test-profile"), /AIT_DRIVE_URL is not set/));
+test("requires a Gateway URL when the configured URL is blank", () => assert.throws(() => loadConfig({ AIT_DRIVE_URL: " " }), /AIT_DRIVE_URL is not set/));
 test("accepts HTTPS and trims trailing slash", () => {
   const config = loadConfig({ AIT_DRIVE_URL: "https://drive.example.com/" });
   assert.equal(config.baseUrl, "https://drive.example.com");
