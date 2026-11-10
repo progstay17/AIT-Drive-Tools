@@ -40,6 +40,10 @@ The CLI and MCP use the same `GatewayClient` service layer:
 
 The Gateway remains the sole authority for account identity, permissions, quotas, and storage-node routing. Tools never connect to Agent endpoints or storage roots directly.
 
+## Share links
+
+`POST /api/share` accepts `{ path, days, slug? }`. The optional `slug` requests a human-readable short URL under `/go/`; the Gateway normalizes and validates it and returns HTTP 409 if it is already in use. Without `slug`, the Gateway generates a random short alias. The signed share token remains the authority for expiry and account revocation, and legacy `/s/:token` links remain supported.
+
 ## Security and deployment boundaries
 
 - Bearer authentication is separate from browser-cookie sessions; browser CSRF protections remain unchanged.

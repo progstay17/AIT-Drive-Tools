@@ -24,7 +24,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     { name: "ait_drive_upload_file", description: "Stream one local file to an AIT Drive folder.", inputSchema: { type: "object", properties: { localPath: { type: "string", minLength: 1 }, destinationFolder: { type: "string", default: "" } }, required: ["localPath"] } },
     { name: "ait_drive_upload_folder", description: "Recursively upload a local folder and subfolders. Requires confirm=true or dryRun=true.", inputSchema: { type: "object", properties: { localPath: { type: "string", minLength: 1 }, destinationFolder: { type: "string", default: "" }, ...confirmSchema }, required: ["localPath"] } },
     { name: "ait_drive_download_file", description: "Download a Drive file or folder ZIP to a local path. Existing local files are protected unless overwrite=true.", inputSchema: { type: "object", properties: { drivePath: { type: "string", minLength: 1 }, localPath: { type: "string", minLength: 1 }, overwrite: { type: "boolean", default: false } }, required: ["drivePath", "localPath"] } },
-    { name: "ait_drive_create_share_link", description: "Create a read-only share link for one file or folder ZIP. Expiry is 1–30 days.", inputSchema: { type: "object", properties: { path: { type: "string" }, days: { type: "integer", minimum: 1, maximum: 30, default: 7 } }, required: ["path"] } },
+    { name: "ait_drive_create_share_link", description: "Create a read-only share link for one file or folder ZIP. Expiry is 1–30 days.", inputSchema: { type: "object", properties: { path: { type: "string" }, days: { type: "integer", minimum: 1, maximum: 30, default: 7 }, slug: { type: "string", minLength: 3, maxLength: 48, description: "Optional custom URL slug; lowercase letters, numbers, and hyphens recommended." } }, required: ["path"] } },
     { name: "ait_drive_create_share_links", description: "Create multiple share links. Requires confirm=true or dryRun=true and returns per-item results.", inputSchema: { type: "object", properties: { paths: { type: "array", items: { type: "string", minLength: 1 }, minItems: 1, maxItems: 100 }, days: { type: "integer", minimum: 1, maximum: 30, default: 7 }, ...confirmSchema }, required: ["paths"] } }
   ]
 }));
@@ -96,8 +96,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         result = await client().download(input.drivePath, input.localPath, input.overwrite); break;
       }
       case "ait_drive_create_share_link": {
-        const input = z.object({ path: z.string().min(1), days: z.number().int().min(1).max(30).optional().default(7) }).parse(args);
-        result = await client().share(input.path, input.days); break;
+        const input = z.object({ path: z.string().min(1), days: z.number().int().min(1).max(30).optional().default(7), slug: z.string().min(3).max(48).optional() }).parse(args);
+        result = await client().share(input.path, input.days, input.slug); break;
       }
       case "ait_drive_create_share_links": {
         const input = z.object({ paths: z.array(z.string().min(1)).min(1).max(100), days: z.number().int().min(1).max(30).optional().default(7), confirm: z.boolean().optional().default(false), dryRun: z.boolean().optional().default(false) }).parse(args);

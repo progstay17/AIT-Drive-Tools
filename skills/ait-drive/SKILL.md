@@ -44,6 +44,7 @@ ait-drive --json upload-folder --local ".\\dataset" --to "Incoming" --yes
 ait-drive --json files move-many --paths "a.csv" "b.csv" --dest "Archive" --dry-run
 ait-drive --json download --path "Reports/summary.xlsx" --to ".\\summary.xlsx"
 ait-drive --json share --path "Reports/summary.xlsx" --days 7
+ait-drive --json share --path "Reports/summary.xlsx" --days 7 --slug "summary-report"
 ait-drive --json share-many --paths "a.csv" "b.csv" --dry-run
 ait-drive --json export-search --query "dataset" --to ".\\dataset-results.csv"
 ```
@@ -57,4 +58,4 @@ ait-drive --json export-search --query "dataset" --to ".\\dataset-results.csv"
 
 ## MCP tools
 
-The server exposes typed tools for account context, list/search/stats, folder creation, rename/move/delete, Trash list/restore, file upload/download, and single/batch share. Mutating rename/move/delete and batch-share tools require `confirm=true` or `dryRun=true`.
+The server exposes typed tools for account context, list/search/stats, folder creation, rename/move/delete, Trash list/restore, file upload/download, and single/batch share with optional custom URL slugs. Mutating rename/move/delete and batch-share tools require `confirm=true` or `dryRun=true`.

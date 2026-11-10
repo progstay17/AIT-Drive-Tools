@@ -172,11 +172,11 @@ program.command("download").description("Download a file or folder ZIP to the lo
     finishProgress(); output(result);
   } catch (error) { finishProgress(); fail(error); }
 });
-program.command("share").description("Create a read-only share link for a file or folder ZIP").requiredOption("--path <path>").option("--days <days>", "Expiry in days", "7").action(async (opts) => {
+program.command("share").description("Create a read-only share link for a file or folder ZIP").requiredOption("--path <path>").option("--days <days>", "Expiry in days", "7").option("--slug <name>", "Custom URL slug (3–48 characters)").action(async (opts) => {
   try {
     const days = Number(opts.days);
     if (!Number.isInteger(days) || days < 1 || days > 30) throw new Error("--days must be an integer from 1 to 30.");
-    output(await client().share(opts.path, days));
+    output(await client().share(opts.path, days, opts.slug));
   } catch (error) { fail(error); }
 });
 program.command("share-many").description("Create multiple share links; use --dry-run to preview").requiredOption("--paths <paths...>").option("--days <days>", "Expiry in days", "7").option("--yes", "Confirm creation of all share links").option("--dry-run", "Preview paths without creating links").action(async (opts) => {

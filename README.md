@@ -48,6 +48,18 @@ During login, enter the Gateway URL and PAT when prompted. PAT input is hidden. 
 
 The profile vault currently uses Windows DPAPI. On macOS/Linux, use environment variables supplied by the host's secret manager (`AIT_DRIVE_URL`, `AIT_DRIVE_TOKEN`) instead of persistent local profiles.
 
+## Custom share URLs
+
+Users with the Gateway `share` permission can choose an optional URL slug when creating a share link:
+
+```powershell
+ait-drive share --path "Reports/summary.xlsx" --days 7 --slug "summary-report"
+```
+
+Slugs are globally unique, 3–48 characters after normalization, and use lowercase letters, numbers, and hyphens. If omitted, the Gateway generates a short random URL. Existing share URLs remain valid.
+
+MCP clients can pass the optional `slug` field to `ait_drive_create_share_link`.
+
 ## CLI activity and progress feedback
 
 Long-running CLI commands report activity instead of appearing idle:
