@@ -137,6 +137,28 @@ test("streams downloads to disk and protects existing local files", async () => 
   }
 });
 
+test("creates a custom share URL slug through the Gateway API", async () => {
+  const originalFetch = globalThis.fetch;
+  let capturedBody: Record<string, unknown> = {};
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    capturedBody = JSON.parse(String(init?.body || "{}")) as Record<string, unknown>;
+    return new Response(JSON.stringify({ url: "https://drive.example.com/go/mining-bayu", days: 7, short: true, custom: true, slug: "mining-bayu" }), {
+      status: 200, headers: { "Content-Type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const result = await new GatewayClient({ baseUrl: "https://drive.example.com", token: "pat-secret" }).share("Project/audio.wav", 7, "mining-bayu");
+    assert.equal(capturedBody.path, "Project/audio.wav");
+    assert.equal(capturedBody.days, 7);
+    assert.equal(capturedBody.slug, "mining-bayu");
+    assert.equal(result.custom, true);
+    assert.equal(result.slug, "mining-bayu");
+    assert.match(result.url, /\\/go\\/mining-bayu$/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("batch share returns per-item success and failure", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
