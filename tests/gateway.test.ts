@@ -182,8 +182,8 @@ test("lists, inspects, and revokes account-owned share links", async () => {
     const revoked = await client.revokeShare("mining-bayu");
     assert.deepEqual(revoked, { ok: true, slug: "mining-bayu" });
     assert.equal(new URL(calls[0]!.url).pathname, "/api/shares");
-    assert.equal(new URL(calls[2]!.url).pathname, "/api/shares/mining-bayu");
-    assert.equal(calls[2]!.method, "DELETE");
+    assert.equal(new URL(calls[3]!.url).pathname, "/api/shares/mining-bayu");
+    assert.equal(calls[3]!.method, "DELETE");
     assert.ok(calls.every((call) => call.authorization === "Bearer pat-secret"));
   } finally {
     globalThis.fetch = originalFetch;
