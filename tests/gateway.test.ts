@@ -214,7 +214,7 @@ test("batch share returns per-item success and failure", async () => {
 });
 
 
-test("plans recursive folder uploads without following symbolic links", async () => {
+test("plans recursive folder uploads without following symbolic links", async (t) => {
   const { mkdtemp, mkdir, writeFile, symlink, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
@@ -223,7 +223,16 @@ test("plans recursive folder uploads without following symbolic links", async ()
   await mkdir(join(root, "nested", "deep"), { recursive: true });
   await writeFile(join(root, "root.txt"), "root");
   await writeFile(join(root, "nested", "deep", "child.csv"), "child-data");
-  await symlink(join(root, "root.txt"), join(root, "linked.txt"));
+  try {
+    await symlink(join(root, "root.txt"), join(root, "linked.txt"));
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && ["EPERM", "ENOTSUP", "EACCES"].includes(String(error.code))) {
+      await rm(dir, { recursive: true, force: true });
+      t.skip("Symbolic links are not permitted in this Windows environment.");
+      return;
+    }
+    throw error;
+  }
   try {
     const plan = await new GatewayClient({ baseUrl: "https://drive.example.com", token: "pat-secret" }).planUploadFolder(root, "Incoming");
     assert.equal(plan.targetRoot, "Incoming/dataset");
