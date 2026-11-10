@@ -22,6 +22,16 @@ export interface TrashItem {
   type?: "file" | "dir";
 }
 
+export interface ShareLink {
+  slug: string;
+  url: string;
+  path: string;
+  createdAt: number;
+  expiresAt: number;
+  custom: boolean;
+  status: "active" | "expired" | "invalid";
+}
+
 export class GatewayClient {
   constructor(private readonly config: AppConfig) {}
 
@@ -123,6 +133,25 @@ export class GatewayClient {
     return this.postJson<{ url: string; days: number; short?: boolean; custom?: boolean; slug?: string }>("/api/share", {
       path, days, ...(slug ? { slug } : {})
     });
+  }
+
+  async listShares() {
+    return this.getJson<{ items: ShareLink[] }>("/api/shares");
+  }
+
+  async getShare(slug: string) {
+    const normalized = slug.trim();
+    if (!normalized) throw new Error("Slug link wajib diisi.");
+    const result = await this.listShares();
+    const item = result.items.find((link) => link.slug === normalized);
+    if (!item) throw new Error(`Share link "${normalized}" tidak ditemukan atau bukan milik akun ini.`);
+    return item;
+  }
+
+  async revokeShare(slug: string) {
+    const normalized = slug.trim();
+    if (!normalized) throw new Error("Slug link wajib diisi.");
+    return this.jsonResult<{ ok: true; slug: string }>(await this.request(`/api/shares/${encodeURIComponent(normalized)}`, { method: "DELETE" }));
   }
 
   async shareMany(paths: string[], days = 7) {
