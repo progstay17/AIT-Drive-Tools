@@ -119,8 +119,10 @@ export class GatewayClient {
     return this.postJson<{ ok: true; path?: string }>("/api/trash/restore", { id });
   }
 
-  async share(path: string, days = 7) {
-    return this.postJson<{ url: string; days: number }>("/api/share", { path, days });
+  async share(path: string, days = 7, slug?: string) {
+    return this.postJson<{ url: string; days: number; short?: boolean; custom?: boolean; slug?: string }>("/api/share", {
+      path, days, ...(slug ? { slug } : {})
+    });
   }
 
   async shareMany(paths: string[], days = 7) {
